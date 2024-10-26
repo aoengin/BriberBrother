@@ -1,9 +1,6 @@
-import { buildModule } from "@nomicfoundation/hardhat-ignition/modules";
+const { buildModule } = require("@nomicfoundation/hardhat-ignition/modules");
 
-const BriberBrosModule = buildModule("BriberBrosModule", (m) => {
-  const briberBros = m.contract("BriberBros", []);
-
+module.exports = buildModule("BriberBrosModule", (m) => {
+  const briberBros = m.contract("BriberBrothers", []);
   return { briberBros };
 });
-
-export default BriberBrosModule;
