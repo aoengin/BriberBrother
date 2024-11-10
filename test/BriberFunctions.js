@@ -36,6 +36,9 @@ describe("BriberFunctions", function () {
 
     await time.increaseTo(unlockTime);
     expect(await contract.connect(briber).withdrawBribe(wTXID, briber.address)).to.changeEtherBalance(briber, BigInt(bribeAmount));
+    expect(await contract.connect(briber).getBribeExpirationTime(wTXID)).to.equal(0);
+    expect(await contract.connect(briber).getBribeAmount(wTXID)).to.equal(0);
+    expect(await contract.connect(briber).getBribeTransactionIPFS(wTXID)).to.equal("");
   });
 
   it("Should not allow anyone other than the briber to withdraw the bribe", async function () {
