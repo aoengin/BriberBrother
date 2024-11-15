@@ -11,7 +11,7 @@ contract BriberFunctions{
   }
 
   function isBribeEmpty(Bribe memory bribe) private pure returns (bool) {
-    return bribe.briber == address(0) && bytes(bribe.ipfsHash).length == 0 && bribe.amount == 0 && bribe.validUntil == 0;
+    return bribe.briber == address(0);
   }
 
   // Maybe this error can be expanded with the 'Bribe' info as well.
