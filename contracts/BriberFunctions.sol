@@ -35,7 +35,6 @@ contract BriberFunctions{
     Bribe memory bribe = Bribes[wTXID];
     require(msg.sender == bribe.briber, NotTheBriber(wTXID));
     require(block.timestamp > bribe.validUntil, BribeStillValid(wTXID, bribe.validUntil));
-    require(block.timestamp > bribe.validUntil, "Test Error");
 
     // Do we need to check if the bribe amount is non-zero here or while recording the tx?
     uint256 bribeAmount = bribe.amount;
