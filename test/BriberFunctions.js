@@ -10,7 +10,7 @@ describe("BriberFunctions", function () {
     const ipfsHash = "QmQ11XQzsKvtwbnDKncRshqz7J8oEf86SzpC8DhjjWfsa9";
 
     const [briber, _] = await hre.ethers.getSigners();
-    const contract = await hre.ethers.deployContract("BriberFunctions");
+    const contract = await hre.ethers.deployContract("BriberBrothers");
     await contract.recordTx(wTXID, ipfsHash, {value: bribeAmount})
     const bribeTime = await time.latest();
 
@@ -20,7 +20,7 @@ describe("BriberFunctions", function () {
   it("Should not allow a bribe with zero amount to be placed", async function () {
     const wTXID = "0xa62d430d8dae3dfddd7d2ac12579ae36735598fd42ded7fda3b08736f6a6c696"
     const ipfsHash = "QmQ11XQzsKvtwbnDKncRshqz7J8oEf86SzpC8DhjjWfsa9";
-    const contract = await hre.ethers.deployContract("BriberFunctions");
+    const contract = await hre.ethers.deployContract("BriberBrothers");
     
     await expect(contract.recordTx(wTXID, ipfsHash, {value: 0})).to.be.revertedWithCustomError(contract, "ZeroBribe");
   });
