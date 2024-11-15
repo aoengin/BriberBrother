@@ -43,16 +43,7 @@ contract BriberFunctions{
     recipient.transfer(bribeAmount);
   }
 
-  function getBribeAmount(bytes32 wTXID) public view returns (uint256){
-    return Bribes[wTXID].amount;
+  function getBribe(bytes32 wTXID) public view returns (Bribe memory){
+    return Bribes[wTXID];
   }
-
-  function getBribeTransactionIPFS(bytes32 wTXID) public view returns (string memory){
-    return Bribes[wTXID].ipfsHash;
-  }
-
-  function getBribeExpirationTime(bytes32 wTXID) public view returns (uint256){
-    return Bribes[wTXID].validUntil;
-  }
-
 }
