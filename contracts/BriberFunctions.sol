@@ -24,10 +24,14 @@ contract BriberFunctions{
   /// The bribe is still valid, it can only be withdrawn after the timestamp `validUntil`.
   error BribeStillValid(bytes32 wTXID, uint256 validUntil);
 
+  /// Can't place a bribe with amount equal to zero.
+  error ZeroBribe();
+
   mapping(bytes32 => Bribe) public Bribes;
 
   function recordTx(bytes32 wTXID, string calldata ipfsHash) public payable {
     require(isBribeEmpty(Bribes[wTXID]), TransactionAlreadyBribed(wTXID));
+    require(msg.value > 0, ZeroBribe());
     Bribes[wTXID] = Bribe(msg.sender, ipfsHash, msg.value, block.timestamp + 14 days);
   }
 
