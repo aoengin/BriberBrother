@@ -27,9 +27,11 @@ describe("BriberFunctions", function () {
 
   it("Should save and retrieve the bribe information correctly", async function () {
     const { contract, wTXID, bribeAmount, ipfsHash, briber, bribeTime} = await loadFixture(deployAndRecordTxFixture);
+    await contract.unlockFunds(wTXID);
 
+    const unlockCallTime = await time.latest();
     const FOURTEEN_DAYS_IN_SECS = 14 * 24 * 60 * 60;
-    const unlockTime = bribeTime + FOURTEEN_DAYS_IN_SECS;
+    const unlockTime = unlockCallTime + FOURTEEN_DAYS_IN_SECS;
 
     const bribe = await contract.getBribe(wTXID)
 
@@ -41,9 +43,11 @@ describe("BriberFunctions", function () {
 
   it("Should allow an expired bribe to be withdrawn with the correct amount", async function () {
     const { contract, wTXID, bribeAmount, _, briber, bribeTime} = await loadFixture(deployAndRecordTxFixture);
+    await contract.unlockFunds(wTXID);
 
+    const unlockCallTime = await time.latest();
     const FOURTEEN_DAYS_IN_SECS = 14 * 24 * 60 * 60;
-    const unlockTime = bribeTime + FOURTEEN_DAYS_IN_SECS;
+    const unlockTime = unlockCallTime + FOURTEEN_DAYS_IN_SECS;
 
     await time.increaseTo(unlockTime);
     expect(await contract.connect(briber).withdrawBribe(wTXID, briber.address)).to.changeEtherBalance(briber, BigInt(bribeAmount));
@@ -100,9 +104,11 @@ describe("BriberFunctions", function () {
 
   it("Should allow another bribe to be placed for the same wTXID, after the bribe is withdrawn", async function () {
     const { contract, wTXID, bribeAmount, ipfsHash, briber, bribeTime} = await loadFixture(deployAndRecordTxFixture);
+    await contract.unlockFunds(wTXID);
 
+    const unlockCallTime = await time.latest();
     const FOURTEEN_DAYS_IN_SECS = 14 * 24 * 60 * 60;
-    const unlockTime = bribeTime + FOURTEEN_DAYS_IN_SECS;
+    const unlockTime = unlockCallTime + FOURTEEN_DAYS_IN_SECS;
     await time.increaseTo(unlockTime);
 
     await contract.connect(briber).withdrawBribe(wTXID, briber.address)

@@ -120,7 +120,7 @@ contract BriberBrothers {
         Bribes[wTXID] = Bribe(msg.sender, ipfsHash, msg.value, type(uint256).max);
     }
 
-    function unlock_funds(bytes32 wTXID) public {
+    function unlockFunds(bytes32 wTXID) public {
         Bribe storage bribe = Bribes[wTXID];
         require(msg.sender == bribe.briber, NotTheBriber(wTXID));
         require(bribe.validUntil == type(uint256).max, UnlockFundsCalledBefore(wTXID));
