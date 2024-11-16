@@ -6,9 +6,20 @@ import {BTCUtils} from "./BTCUtils.sol";
 import {ValidateSPV} from "./ValidateSPV.sol";
 
 contract BriberBrothers {
+    // Maybe this error can be expanded with the 'Bribe' info as well.
+    /// There is already a bribe for the transaction with wTXID `wTXID`.
+    error TransactionAlreadyBribed(bytes32 wTXID);
+
+    /// You are not the briber for wTXID `wTXID`. The bribe may not exist. 
+    error NotTheBriber(bytes32 wTXID);
+
+    /// The bribe is still valid, it can only be withdrawn after the timestamp `validUntil`.
+    error BribeStillValid(bytes32 wTXID, uint256 validUntil);
+
+    /// Can't place a bribe with amount equal to zero.
+    error ZeroBribe();
 
     event AddressIndexed(address indexed evmAddress, uint64 index);
-
 
     struct CoinbaseTransactionParams {
         bytes4 version;
@@ -18,11 +29,19 @@ contract BriberBrothers {
         uint64 index;
     }
 
+    struct Bribe{
+        address briber;
+        string ipfsHash;
+        uint256 amount;
+        uint256 validUntil;  // It might save gas to use an uint64 instead
+    }
+
 
     uint64 index = 1;
     mapping (uint64 => address) idToAddress;
     mapping (address => uint64) addressToId;
     address public owner;
+    mapping(bytes32 => Bribe) public Bribes;
 
     modifier onlyOwner() {
         require(msg.sender == owner, "Only owner can call this function");
@@ -88,31 +107,9 @@ contract BriberBrothers {
         return uint64(_b);
     }
 
-    struct Bribe{
-        address briber;
-        string ipfsHash;
-        uint256 amount;
-        uint256 validUntil;  // It might save gas to use an uint64 instead
-    }
-
     function isBribeEmpty(Bribe memory bribe) private pure returns (bool) {
         return bribe.briber == address(0);
     }
-
-    // Maybe this error can be expanded with the 'Bribe' info as well.
-    /// There is already a bribe for the transaction with wTXID `wTXID`.
-    error TransactionAlreadyBribed(bytes32 wTXID);
-
-    /// You are not the briber for wTXID `wTXID`. The bribe may not exist. 
-    error NotTheBriber(bytes32 wTXID);
-
-    /// The bribe is still valid, it can only be withdrawn after the timestamp `validUntil`.
-    error BribeStillValid(bytes32 wTXID, uint256 validUntil);
-
-    /// Can't place a bribe with amount equal to zero.
-    error ZeroBribe();
-
-    mapping(bytes32 => Bribe) public Bribes;
 
     function recordTx(bytes32 wTXID, string calldata ipfsHash) public payable {
         require(isBribeEmpty(Bribes[wTXID]), TransactionAlreadyBribed(wTXID));
