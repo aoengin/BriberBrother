@@ -19,6 +19,9 @@ contract BriberBrothers {
     /// Can't place a bribe with amount equal to zero.
     error ZeroBribe();
 
+    /// unlock_funds has already been called for the transaction `wTXID`
+    error UnlockFundsCalledBefore(bytes32 wTXID);
+
     event AddressIndexed(address indexed evmAddress, uint64 index);
 
     struct CoinbaseTransactionParams {
@@ -114,7 +117,14 @@ contract BriberBrothers {
     function recordTx(bytes32 wTXID, string calldata ipfsHash) public payable {
         require(isBribeEmpty(Bribes[wTXID]), TransactionAlreadyBribed(wTXID));
         require(msg.value > 0, ZeroBribe());
-        Bribes[wTXID] = Bribe(msg.sender, ipfsHash, msg.value, block.timestamp + 14 days);
+        Bribes[wTXID] = Bribe(msg.sender, ipfsHash, msg.value, type(uint256).max);
+    }
+
+    function unlock_funds(bytes32 wTXID) public {
+        Bribe storage bribe = Bribes[wTXID];
+        require(msg.sender == bribe.briber, NotTheBriber(wTXID));
+        require(bribe.validUntil == type(uint256).max, UnlockFundsCalledBefore(wTXID));
+        bribe.validUntil = block.timestamp + 14 days;
     }
 
     function withdrawBribe(bytes32 wTXID, address payable recipient) public {
