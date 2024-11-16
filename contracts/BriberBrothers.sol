@@ -22,6 +22,9 @@ contract BriberBrothers {
     /// unlock_funds has already been called for the transaction `wTXID`
     error UnlockFundsCalledBefore(bytes32 wTXID);
 
+    address constant CitreaBitcoinLightClient = 0x3100000000000000000000000000000000000001;
+
+
     event AddressIndexed(address indexed evmAddress, uint64 index);
 
     struct CoinbaseTransactionParams {
@@ -37,6 +40,15 @@ contract BriberBrothers {
         string ipfsHash;
         uint256 amount;
         uint256 validUntil;  // It might save gas to use an uint64 instead
+    }
+
+    struct BlockHeader {
+        bytes4 version;
+        bytes32 prevBlock;
+        bytes32 merkleRoot;
+        bytes4 time;
+        bytes4 bits;
+        bytes4 nonce;
     }
 
 
@@ -70,17 +82,53 @@ contract BriberBrothers {
         return addressToId[evmAddress];
     }
 
-    function bribeMe(CoinbaseTransactionParams calldata params, bytes32 _merkleRoot, bytes calldata _proof, uint256 _index) public view returns (address) {
-        require(BTCUtils.validateVin(params.inputs), "Invalid input");
-        require(_verifyCoinbaseTransaction(params), "Invalid coinbase transaction");
-        bytes32 _txId = calculateTxId(params.version, params.inputs, params.outputs, params.locktime);
-        require(_verifyCoinbaseTransactionInclusion(_txId, _merkleRoot, _proof, _index), "Invalid transaction inclusion");
-        bytes memory addressIndex = getIndexFromCoinbaseTx(params.outputs, params.index);
+    function bribeMe(CoinbaseTransactionParams calldata coinbaseParams, BlockHeader calldata blockheaderParams, bytes calldata _proof, uint256 _index, uint256 blockHeight) public view returns (address) {
+        require(calculateAndCompareHash(blockheaderParams, blockHeight), "Invalid block header");
+        require(BTCUtils.validateVin(coinbaseParams.inputs), "Invalid input");
+        require(_verifyCoinbaseTransaction(coinbaseParams), "Invalid coinbase transaction");
+        bytes32 _txId = calculateTxId(coinbaseParams.version, coinbaseParams.inputs, coinbaseParams.outputs, coinbaseParams.locktime);
+        require(_verifyCoinbaseTransactionInclusion(_txId, blockheaderParams.merkleRoot, _proof, _index), "Invalid transaction inclusion");
+        bytes memory addressIndex = getIndexFromCoinbaseTx(coinbaseParams.outputs, coinbaseParams.index);
         uint64 _addressIndex = bytesToUint64(addressIndex);
         address evmAddress = idToAddress[_addressIndex];
         require(evmAddress != address(0), "Address not indexed");
         return evmAddress;
     }
+    
+    function callGetBlockHash(uint256 blockNumber) public view returns (bytes32) {
+        (bool success, bytes memory data) = CitreaBitcoinLightClient.staticcall(
+            abi.encodeWithSignature("getBlockHash(uint256)", blockNumber)
+        );
+        require(success, "Call to getBlockHash failed");
+
+        return abi.decode(data, (bytes32));
+    }
+
+    function calculateAndCompareHash(BlockHeader memory header, uint256 blockHeight)
+        public
+        view
+        returns (bool)
+    {
+        bytes32 blockHash = callGetBlockHash(blockHeight);
+        require(blockHash != 0, "Block hash not found");
+        
+        // Concatenate block header components
+        bytes memory blockHeader = abi.encodePacked(
+            header.version,
+            header.prevBlock,
+            header.merkleRoot,
+            header.time,
+            header.bits,
+            header.nonce
+        );
+
+        // Calculate double SHA-256 hash
+        bytes32 calculatedHash = BTCUtils.hash256(blockHeader);
+
+        // Compare the calculated hash with the existing hash
+        return calculatedHash == blockHash;
+    }
+
 
 
     function getIndexFromCoinbaseTx(bytes calldata outputs, uint64 _index) public pure returns (bytes memory) {
