@@ -16,6 +16,18 @@ describe("BriberFunctions", function () {
     return {contract, wTXID, bribeAmount, ipfsHash, briber };
   }
 
+  async function getAnotherSigner(signer) {
+    const signers = await hre.ethers.getSigners();
+    let other;
+    if (signer.address == signers[0].address){
+      other = signers[1];
+    } 
+    else {
+      other = signers[0];
+    }
+    return other;
+  }
+
   it("Should not allow a bribe with zero amount to be placed", async function () {
     const wTXID = "0xa62d430d8dae3dfddd7d2ac12579ae36735598fd42ded7fda3b08736f6a6c696"
     const ipfsHash = "QmQ11XQzsKvtwbnDKncRshqz7J8oEf86SzpC8DhjjWfsa9";
@@ -68,14 +80,8 @@ describe("BriberFunctions", function () {
     const unlockTime = unlockCallTime + FOURTEEN_DAYS_IN_SECS;
     await time.increaseTo(unlockTime);
 
-    const signers = await hre.ethers.getSigners();
-    let other;
-    if (briber.address == signers[0].address){
-      other = signers[1];
-    } 
-    else {
-      other = signers[0];
-    }
+    const other = await getAnotherSigner(briber);
+
     await expect(contract.connect(other).withdrawBribe(wTXID, other.address)).to.be.revertedWithCustomError(contract, `NotTheBriber`);
   });
 
@@ -116,5 +122,17 @@ describe("BriberFunctions", function () {
 
     await contract.connect(briber).withdrawBribe(wTXID, briber.address)
     await contract.connect(briber).recordTx(wTXID, ipfsHash, {value: bribeAmount + 100});
+  });
+
+  it("Should not allow a bribes funds to be unlocked twice.", async function () {
+    const { contract, wTXID, _1, _2, _3 } = await loadFixture(deployAndRecordTxFixture);
+    await contract.unlockFunds(wTXID);
+    await expect(contract.unlockFunds(wTXID)).to.be.revertedWithCustomError(contract, 'UnlockFundsCalledBefore');
+  });
+
+  it("Should not allow anyone other than the briber to request to unlock the funds.", async function () {
+    const { contract, wTXID, _1, _2, briber } = await loadFixture(deployAndRecordTxFixture);
+    const other = await getAnotherSigner(briber);
+    await expect(contract.connect(other).unlockFunds(wTXID)).to.be.revertedWithCustomError(contract, 'NotTheBriber');
   });
 });
