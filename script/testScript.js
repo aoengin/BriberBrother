@@ -1,5 +1,5 @@
 async function main() {
-    const contractAddress = "0xbf49952e386a63c1d52Ff1a5D9758E251179fD03";
+    const contractAddress = "0x3438Bb9A0D4C456FdfC2E0CA3bf66875e5998A7D";
     const myContract = await hre.ethers.getContractAt("BriberBrothers", contractAddress);
 
     // all in little endian
@@ -20,7 +20,7 @@ async function main() {
         nonce: nonce
     }
 
-    let check_blockHeader = await myContract.calculateAndCompareHash(blockHeader, 3758);
+    let check_blockHeader = await myContract._callVerifyInclusion(4246, "0x0101522553c73c800c00cdc4479eb82e3dc5ac6663bfb77c1be25f17c188bd9f", "0x0101522553c73c800c00cdc4479eb82e3dc5ac6663bfb77c1be25f17c188bd9f6053a0220a47b0c29c1a28d6ff93ec80417f56dc332487462e0f80fe98fe6cb3", 1);
     let result = await myContract.callGetBlockHash(3758);
     console.log(check_blockHeader);
     console.log(result);

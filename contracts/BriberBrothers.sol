@@ -35,6 +35,18 @@ contract BriberBrothers {
         uint64 index;
     }
 
+    struct CoinbaseTransaction {
+        CoinbaseTransactionParams coinbaseTxParams;
+        bytes proof;
+        uint256 index;
+    }
+
+    struct BribedTx {
+        bytes32 wTXID;
+        bytes proof;
+        uint64 index;
+    }
+
     struct Bribe{
         address briber;
         string ipfsHash;
@@ -82,13 +94,15 @@ contract BriberBrothers {
         return addressToId[evmAddress];
     }
 
-    function bribeMe(CoinbaseTransactionParams calldata coinbaseParams, BlockHeader calldata blockheaderParams, bytes calldata _proof, uint256 _index, uint256 blockHeight) public view returns (address) {
+    function bribeMe(CoinbaseTransaction calldata coinbaseTx, BlockHeader calldata blockheaderParams, BribedTx calldata bribedTx, uint256 blockHeight) public view returns (address) {
         require(calculateAndCompareHash(blockheaderParams, blockHeight), "Invalid block header");
-        require(BTCUtils.validateVin(coinbaseParams.inputs), "Invalid input");
-        require(_verifyCoinbaseTransaction(coinbaseParams), "Invalid coinbase transaction");
-        bytes32 _txId = calculateTxId(coinbaseParams.version, coinbaseParams.inputs, coinbaseParams.outputs, coinbaseParams.locktime);
-        require(_verifyCoinbaseTransactionInclusion(_txId, blockheaderParams.merkleRoot, _proof, _index), "Invalid transaction inclusion");
-        bytes memory addressIndex = getIndexFromCoinbaseTx(coinbaseParams.outputs, coinbaseParams.index);
+        require(BTCUtils.validateVin(coinbaseTx.coinbaseTxParams.inputs), "Invalid input");
+        require(_verifyCoinbaseTransaction(coinbaseTx.coinbaseTxParams), "Invalid coinbase transaction");
+        bytes32 _txId = calculateTxId(coinbaseTx.coinbaseTxParams.version, coinbaseTx.coinbaseTxParams.inputs, coinbaseTx.coinbaseTxParams.outputs, coinbaseTx.coinbaseTxParams.locktime);
+        require(_verifyCoinbaseTransactionInclusion(_txId, blockheaderParams.merkleRoot, coinbaseTx.proof, coinbaseTx.index), "Invalid coinbase transaction inclusion");
+        require(Bribes[bribedTx.wTXID].briber != address(0), "Transaction not bribed");
+        require(_callVerifyInclusion(blockHeight, bribedTx.wTXID, bribedTx.proof, bribedTx.index), "Invalid transaction inclusion");
+        bytes memory addressIndex = getIndexFromCoinbaseTx(coinbaseTx.coinbaseTxParams.outputs, coinbaseTx.coinbaseTxParams.index);
         uint64 _addressIndex = bytesToUint64(addressIndex);
         address evmAddress = idToAddress[_addressIndex];
         require(evmAddress != address(0), "Address not indexed");
@@ -103,6 +117,7 @@ contract BriberBrothers {
 
         return abi.decode(data, (bytes32));
     }
+
 
     function calculateAndCompareHash(BlockHeader memory header, uint256 blockHeight)
         public
@@ -144,6 +159,27 @@ contract BriberBrothers {
 
     function _verifyCoinbaseTransactionInclusion(bytes32 _txId, bytes32 _merkleRoot, bytes calldata _proof, uint256 _index) public view returns (bool) {
         return ValidateSPV.prove(_txId, _merkleRoot, _proof, _index);
+    }
+
+    function _callVerifyInclusion(
+        uint256 _blockNumber,
+        bytes32 _wtxId,
+        bytes calldata _proof,
+        uint256 _index
+    ) public view returns (bool) {
+        bytes memory data = abi.encodeWithSignature(
+            "verifyInclusion(uint256,bytes32,bytes,uint256)",
+            _blockNumber,
+            _wtxId,
+            _proof,
+            _index
+        );
+        (bool success, bytes memory result) = CitreaBitcoinLightClient.staticcall(data);
+        if (success) {
+            return abi.decode(result, (bool));
+        } else {
+            return false;
+        }
     }
 
     function _verifyCoinbaseTransaction(CoinbaseTransactionParams calldata params) private pure returns (bool) {
