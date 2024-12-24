@@ -27,6 +27,13 @@ describe("BriberFunctions", function () {
     }
     return other;
   }
+  it("Should not allow wTXID to be 0 when placing a bribe", async function () {
+    const wTXID = "0x0000000000000000000000000000000000000000000000000000000000000000"
+    const ipfsHash = "QmQ11XQzsKvtwbnDKncRshqz7J8oEf86SzpC8DhjjWfsa9";
+    const contract = await hre.ethers.deployContract("BriberBrothers");
+    
+    await expect(contract.recordTx(wTXID, ipfsHash, {value: 0})).to.be.revertedWith("wTXID can't be zero!");
+  });
 
   it("Should not allow a bribe with zero amount to be placed", async function () {
     const wTXID = "0xa62d430d8dae3dfddd7d2ac12579ae36735598fd42ded7fda3b08736f6a6c696"

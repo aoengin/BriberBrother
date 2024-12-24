@@ -163,6 +163,7 @@ contract BriberBrothers {
     }
 
     function recordTx(bytes32 wTXID, string calldata ipfsHash) public payable {
+        require(wTXID != 0, "wTXID can't be zero!");
         require(isBribeEmpty(Bribes[wTXID]), TransactionAlreadyBribed(wTXID));
         require(msg.value > 0, ZeroBribe());
         Bribes[wTXID] = Bribe(msg.sender, ipfsHash, msg.value, type(uint256).max);
