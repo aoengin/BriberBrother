@@ -2,8 +2,8 @@
 
 pragma solidity ^0.8.27;
 
-import {BTCUtils} from "./BTCUtils.sol";
-import {ValidateSPV} from "./ValidateSPV.sol";
+import {BTCUtils} from "../external/BTCUtils.sol";
+import {ValidateSPV} from "../external/ValidateSPV.sol";
 
 contract BriberBrothers {
     // Maybe this error can be expanded with the 'Bribe' info as well.
