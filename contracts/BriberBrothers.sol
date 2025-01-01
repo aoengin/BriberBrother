@@ -95,6 +95,7 @@ contract BriberBrothers {
     }
 
     function bribeMe(CoinbaseTransaction calldata coinbaseTx, BlockHeader calldata blockheaderParams, BribedTx calldata bribedTx, uint256 blockHeight) public view returns (address) {
+        require(bribedTx.wTXID != bytes32(0), "Bribed transcation wTXID cannot be zero");
         require(calculateAndCompareHash(blockheaderParams, blockHeight), "Invalid block header");
         require(BTCUtils.validateVin(coinbaseTx.coinbaseTxParams.inputs), "Invalid input");
         require(_verifyCoinbaseTransaction(coinbaseTx.coinbaseTxParams), "Invalid coinbase transaction");
