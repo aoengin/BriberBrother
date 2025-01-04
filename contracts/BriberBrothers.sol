@@ -94,7 +94,7 @@ contract BriberBrothers {
         return addressToId[evmAddress];
     }
 
-    function bribeMe(CoinbaseTransaction calldata coinbaseTx, BlockHeader calldata blockheaderParams, BribedTx calldata bribedTx, uint256 blockHeight) public view returns (address) {
+    function bribeMe(CoinbaseTransaction calldata coinbaseTx, BlockHeader calldata blockheaderParams, BribedTx calldata bribedTx, uint256 blockHeight) public {
         require(bribedTx.wTXID != bytes32(0), "Bribed transcation wTXID cannot be zero");
         require(calculateAndCompareHash(blockheaderParams, blockHeight), "Invalid block header");
         require(BTCUtils.validateVin(coinbaseTx.coinbaseTxParams.inputs), "Invalid input");
@@ -107,7 +107,11 @@ contract BriberBrothers {
         uint64 _addressIndex = bytesToUint64(addressIndex);
         address evmAddress = idToAddress[_addressIndex];
         require(evmAddress != address(0), "Address not indexed");
-        return evmAddress;
+
+        uint256 bribeAmount = Bribes[bribedTx.wTXID].amount;
+        delete Bribes[bribedTx.wTXID];
+        (bool success, ) = payable(evmAddress).call{value: bribeAmount}("");  // Send the bribe to the miner
+        require(success, "Bribe payment failed");
     }
     
     function callGetBlockHash(uint256 blockNumber) public view returns (bytes32) {
