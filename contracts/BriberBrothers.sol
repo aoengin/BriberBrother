@@ -96,15 +96,15 @@ contract BriberBrothers {
 
     function bribeMe(CoinbaseTransaction calldata coinbaseTx, BlockHeader calldata blockheaderParams, BribedTx calldata bribedTx, uint256 blockHeight) public {
         require(bribedTx.wTXID != bytes32(0), "Bribed transcation wTXID cannot be zero");
-        require(calculateAndCompareHash(blockheaderParams, blockHeight), "Invalid block header");
+        require(_calculateAndCompareHash(blockheaderParams, blockHeight), "Invalid block header");
         require(BTCUtils.validateVin(coinbaseTx.coinbaseTxParams.inputs), "Invalid input");
         require(_verifyCoinbaseTransaction(coinbaseTx.coinbaseTxParams), "Invalid coinbase transaction");
-        bytes32 _txId = calculateTxId(coinbaseTx.coinbaseTxParams.version, coinbaseTx.coinbaseTxParams.inputs, coinbaseTx.coinbaseTxParams.outputs, coinbaseTx.coinbaseTxParams.locktime);
+        bytes32 _txId = _calculateTxId(coinbaseTx.coinbaseTxParams.version, coinbaseTx.coinbaseTxParams.inputs, coinbaseTx.coinbaseTxParams.outputs, coinbaseTx.coinbaseTxParams.locktime);
         require(_verifyCoinbaseTransactionInclusion(_txId, blockheaderParams.merkleRoot, coinbaseTx.proof, coinbaseTx.index), "Invalid coinbase transaction inclusion");
         require(Bribes[bribedTx.wTXID].briber != address(0), "Transaction not bribed");
         require(_callVerifyInclusion(blockHeight, bribedTx.wTXID, bribedTx.proof, bribedTx.index), "Invalid transaction inclusion");
-        bytes memory addressIndex = getIndexFromCoinbaseTx(coinbaseTx.coinbaseTxParams.outputs, coinbaseTx.coinbaseTxParams.index);
-        uint64 _addressIndex = bytesToUint64(addressIndex);
+        bytes memory addressIndex = _getIndexFromCoinbaseTx(coinbaseTx.coinbaseTxParams.outputs, coinbaseTx.coinbaseTxParams.index);
+        uint64 _addressIndex = _bytesToUint64(addressIndex);
         address evmAddress = idToAddress[_addressIndex];
         require(evmAddress != address(0), "Address not indexed");
 
@@ -115,7 +115,7 @@ contract BriberBrothers {
         require(success, "Bribe payment failed");
     }
     
-    function callGetBlockHash(uint256 blockNumber) public view returns (bytes32) {
+    function _callGetBlockHash(uint256 blockNumber) private view returns (bytes32) {
         (bool success, bytes memory data) = CitreaBitcoinLightClient.staticcall(
             abi.encodeWithSignature("getBlockHash(uint256)", blockNumber)
         );
@@ -125,12 +125,12 @@ contract BriberBrothers {
     }
 
 
-    function calculateAndCompareHash(BlockHeader memory header, uint256 blockHeight)
-        public
+    function _calculateAndCompareHash(BlockHeader memory header, uint256 blockHeight)
+        private
         view
         returns (bool)
     {
-        bytes32 blockHash = callGetBlockHash(blockHeight);
+        bytes32 blockHash = _callGetBlockHash(blockHeight);
         require(blockHash != 0, "Block hash not found");
         
         // Concatenate block header components
@@ -152,13 +152,13 @@ contract BriberBrothers {
 
 
 
-    function getIndexFromCoinbaseTx(bytes calldata outputs, uint64 _index) public pure returns (bytes memory) {
+    function _getIndexFromCoinbaseTx(bytes calldata outputs, uint64 _index) private pure returns (bytes memory) {
         bytes memory opreturn = BTCUtils.extractOutputAtIndex(outputs, _index);
         bytes memory addressIndex = BTCUtils.extractOpReturnData(opreturn);
         return addressIndex;
     }
 
-    function calculateTxId(bytes4 _version, bytes memory _vin, bytes memory _vout, bytes4 _locktime) public view returns (bytes32) {
+    function _calculateTxId(bytes4 _version, bytes memory _vin, bytes memory _vout, bytes4 _locktime) private view returns (bytes32) {
         bytes32 txId = ValidateSPV.calculateTxId(_version, _vin, _vout, _locktime);        
         return txId;
     }
@@ -194,19 +194,19 @@ contract BriberBrothers {
     }
 
     // TODO: implement a better version of this function
-    function bytesToUint64(bytes memory b) public pure returns (uint64) {
+    function _bytesToUint64(bytes memory b) private pure returns (uint64) {
         uint256 _b = BTCUtils.bytesToUint(b);
         require (_b < type(uint64).max, "Value out of bounds");
         return uint64(_b);
     }
 
-    function isBribeEmpty(Bribe memory bribe) private pure returns (bool) {
+    function _isBribeEmpty(Bribe memory bribe) private pure returns (bool) {
         return bribe.briber == address(0);
     }
 
     function recordTx(bytes32 wTXID, string calldata ipfsHash) public payable {
         require(wTXID != 0, "wTXID can't be zero!");
-        require(isBribeEmpty(Bribes[wTXID]), TransactionAlreadyBribed(wTXID));
+        require(_isBribeEmpty(Bribes[wTXID]), TransactionAlreadyBribed(wTXID));
         require(msg.value > 0, ZeroBribe());
         Bribes[wTXID] = Bribe(msg.sender, ipfsHash, msg.value, type(uint256).max);
     }
