@@ -131,15 +131,40 @@ describe("BriberFunctions", function () {
     await contract.connect(briber).recordTx(wTXID, ipfsHash, {value: bribeAmount + 100});
   });
 
-  it("Should not allow a bribes funds to be unlocked twice.", async function () {
+  it("Should not allow a bribes funds to be unlocked twice", async function () {
     const { contract, wTXID, _1, _2, _3 } = await loadFixture(deployAndRecordTxFixture);
     await contract.unlockFunds(wTXID);
     await expect(contract.unlockFunds(wTXID)).to.be.revertedWithCustomError(contract, 'UnlockFundsCalledBefore');
   });
 
-  it("Should not allow anyone other than the briber to request to unlock the funds.", async function () {
+  it("Should not allow anyone other than the briber to request to unlock the funds", async function () {
     const { contract, wTXID, _1, _2, briber } = await loadFixture(deployAndRecordTxFixture);
     const other = await getAnotherSigner(briber);
     await expect(contract.connect(other).unlockFunds(wTXID)).to.be.revertedWithCustomError(contract, 'NotTheBriber');
+  });
+
+  it("Should emit a BribePlaced event when a bribe is placed", async function () {
+    const wTXID = "0xa62d430d8dae3dfddd7d2ac12579ae36735598fd42ded7fda3b08736f6a6c696"
+    const bribeAmount = 100_000_000;
+    const ipfsHash = "QmQ11XQzsKvtwbnDKncRshqz7J8oEf86SzpC8DhjjWfsa9";
+    const contract = await hre.ethers.deployContract("BriberBrothers");
+
+    await expect(contract.recordTx(wTXID, ipfsHash, {value: bribeAmount}))
+      .to.emit(contract, "BribePlaced")
+      .withArgs(wTXID, bribeAmount, ipfsHash);
+  });
+
+  it("Should emit a BribeWithdrawn event when a bribe is withdrawn", async function () {
+    const { contract, wTXID, _1, _2, briber } = await loadFixture(deployAndRecordTxFixture);
+    await contract.unlockFunds(wTXID);
+    const unlockCallTime = await time.latest();
+    const FOURTEEN_DAYS_IN_SECS = 14 * 24 * 60 * 60;
+    const unlockTime = unlockCallTime + FOURTEEN_DAYS_IN_SECS;
+
+    await time.increaseTo(unlockTime);
+
+    await expect(contract.withdrawBribe(wTXID, briber.address))
+      .to.emit(contract, "BribeWithdrawn")
+      .withArgs(wTXID);
   });
 });

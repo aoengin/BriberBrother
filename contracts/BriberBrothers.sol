@@ -27,6 +27,10 @@ contract BriberBrothers {
 
     event AddressIndexed(address indexed evmAddress, uint64 index);
 
+    event BribePlaced(bytes32 wTXID, uint256 bribeAmount, string ipfsHash);
+
+    event BribeWithdrawn(bytes32 wTXID);
+
     struct CoinbaseTransactionParams {
         bytes4 version;
         bytes inputs;
@@ -209,6 +213,7 @@ contract BriberBrothers {
         require(_isBribeEmpty(Bribes[wTXID]), TransactionAlreadyBribed(wTXID));
         require(msg.value > 0, ZeroBribe());
         Bribes[wTXID] = Bribe(msg.sender, ipfsHash, msg.value, type(uint256).max);
+        emit BribePlaced(wTXID, msg.value, ipfsHash);
     }
 
     function unlockFunds(bytes32 wTXID) public {
@@ -226,6 +231,7 @@ contract BriberBrothers {
         // Do we need to check if the bribe amount is non-zero here or while recording the tx?
         uint256 bribeAmount = bribe.amount;
         delete Bribes[wTXID];
+        emit BribeWithdrawn(wTXID);
         recipient.transfer(bribeAmount);
     }
 
