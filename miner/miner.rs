@@ -101,7 +101,7 @@ pub fn mine_block(
         let len = block_template.target.len().min(32);
     
         target[..len].copy_from_slice(&block_template.target[..len]); 
-        println!("Array: {:?}", target); // Remaining elements will be zeroes
+        println!("Array: {:?}", target);
         
         spawn_mining_threads(
             num_threads,
@@ -144,9 +144,8 @@ pub fn create_large_transaction(
     }
 
 
-    // Select up to 3000 UTXOs
     let mut total_input_value = 0;
-    let mut inputs: Vec<CreateRawTransactionInput> = utxos.iter().take(1).map(|utxo| {
+    let mut inputs: Vec<CreateRawTransactionInput> = utxos.iter().take(10).map(|utxo| {
         total_input_value += utxo.amount.to_sat();
         CreateRawTransactionInput {
             txid: utxo.txid,
@@ -160,47 +159,36 @@ pub fn create_large_transaction(
         return None;
     }
 
-    // **Create Large OP_RETURN Output**
     let mut outputs: HashMap<String, Amount> = HashMap::new();
-    // let mut op_return_script = ScriptBuf::new();
-    // op_return_script.push_opcode(OP_RETURN);
-    // op_return_script.push_slice(&PushBytesBuf::try_from(vec![0xAA; 20_00]).ok()?);
 
     let script_pubkey = recipient.script_pubkey();
-
-    // **Define Outputs**
-
 
     outputs.insert(
         recipient.to_string(),
         Amount::from_sat(amount),
     );
 
-    // **Calculate Change**
     let change = total_input_value - amount - fee;
     if change > 0 {
         let change_address = rpc.get_new_address(None, None).ok()?; // Get change address
         outputs.insert(change_address.assume_checked().to_string(), Amount::from_sat(change));
     }
 
-    // **Create Raw Transaction**
     let mut raw_tx = rpc.create_raw_transaction(&inputs, &outputs, None, None).ok()?;
 
 
     for _ in 0..9000{
         let op_return_script = Builder::new()
         .push_opcode(opcodes::all::OP_RETURN)
-        .push_slice(b"CITREACITREACITREACITREACITREACITREACITREACITREACITREA")  // Must be ≤ 80 bytes
+        .push_slice(b"CITREACITREACITREACITREACITREACITREACITREACITREACITREA")
         .into_script();
 
-        // Step 3: Append OP_RETURN output
         raw_tx.output.push(TxOut {
-            value: Amount::from_sat(0),  // OP_RETURN outputs must be zero
+            value: Amount::from_sat(0),
             script_pubkey: op_return_script,
         });
     }
-    // raw_tx.output.push(op_return_output);
-    // **Sign Transaction**
+
     let signed_tx = rpc.sign_raw_transaction_with_wallet(&raw_tx, None, None).ok()?;
 
     if !signed_tx.complete {
@@ -208,11 +196,7 @@ pub fn create_large_transaction(
         return None;
     }
     
-    // Write  to file 
-    let mut file = File::create("transaction.hex").unwrap();
-    file.write_all(serialize_hex(&signed_tx.transaction().unwrap()).as_bytes()).unwrap();
 
-    // **Broadcast Transaction**
     let txid = rpc.send_raw_transaction(&signed_tx.hex).ok()?;
     println!("Large transaction broadcasted: {:?}", txid);
     Some(signed_tx.transaction().unwrap())
