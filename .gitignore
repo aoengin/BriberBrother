@@ -16,6 +16,5 @@ node_modules
 # Hardhat Ignition default folder for deployments against a local node
 ignition/deployments
 
-*.py
 
 miner/target
