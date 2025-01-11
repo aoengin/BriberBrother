@@ -2,12 +2,29 @@ use std::sync::mpsc;
 
 use bitcoin::{
     absolute, block::Header, hashes::Hash, Address, Amount, Block, OutPoint, ScriptBuf,
-    Transaction, TxIn, TxMerkleNode, Txid, Witness, Wtxid,
+    Transaction, TxIn, TxMerkleNode, Txid, Witness, Wtxid, TxOut, Sequence, Network 
 };
+
 use bitcoincore_rpc::json::{GetBlockTemplateResult, GetBlockTemplateResultTransaction};
 
 use crate::{multi_threading::spawn_mining_threads, sha256_hash};
- 
+use serde_json::json;
+use bitcoincore_rpc::{Client, RpcApi};
+use bitcoin::consensus::encode::serialize;
+use bitcoin::consensus::encode::serialize_hex;
+use bitcoin::blockdata::locktime::absolute::LockTime;
+use bitcoin::blockdata::transaction::Version;
+use bitcoin::script::PushBytesBuf;
+use bitcoin::opcodes::all::OP_RETURN;
+use std::str::FromStr; 
+use std::collections::HashMap;
+use bitcoincore_rpc::json::CreateRawTransactionInput;
+use bitcoin::address::NetworkChecked;
+use std::fs::File;
+use std::io::Write;
+use bitcoin::blockdata::opcodes;
+use bitcoin::blockdata::script::Builder;
+
 
 static OP_RETURN_PREFIX_WITNESS: &[u8] = &[0x6a, 0x24, 0xaa, 0x21, 0xa9, 0xed];
 static OP_RETURN_PREFIX_INDEX: &[u8] = &[0x6a, 0x08];
@@ -16,11 +33,40 @@ static OP_RETURN_PREFIX_INDEX: &[u8] = &[0x6a, 0x08];
 
 
 pub fn mine_block(
-    block_template: GetBlockTemplateResult,
+    mut block_template: GetBlockTemplateResult,
     coinbase_address: Address,
     height_bytes: Vec<u8>,
     index : u64,
-) -> Block {
+    rpc: &Client,
+) -> Option<Block> {
+
+    let mut block_txs: Vec<Transaction> = Vec::with_capacity(1 + block_template.transactions.len());
+    
+
+    // -- UNCOMMENT AND ADJUST PARAMETERS TO INCLUDE LARGE TRANSACTION --
+
+    // let recipient = Address::from_str("bcrt1ql6hn86due7x90q92cget6h259uwvpxa88e6uhz").unwrap();
+    // let amount = 500_000;
+    // let fee = 200_000;
+
+    // let checked_recipient = recipient.require_network(Network::Regtest).ok()?;
+
+    // if let Some(large_tx) = create_large_transaction(&rpc, checked_recipient, amount, fee) {
+    //     println!("Large transaction included!");
+    //     block_template.transactions.push(GetBlockTemplateResultTransaction {
+    //         txid: large_tx.txid(),
+    //         wtxid: large_tx.wtxid(),
+    //         raw_tx: serialize(&large_tx), // Correctly assigns raw transaction bytes
+    //         fee: Amount::from_sat(1000), // Set an appropriate fee
+    //         sigops: 100, // Estimate or set an appropriate sigops count
+    //         weight: large_tx.weight().to_wu() as usize,
+    //         depends: vec![],
+    //     });
+    // }
+    // else{
+    //     println!("Error: Large transaction not included!");
+    // }
+
     let wtxid_root = calculate_wtxid_root(&block_template.transactions);
 
     let coinbase_tx = get_coinbase_transaction(
@@ -55,7 +101,7 @@ pub fn mine_block(
         let len = block_template.target.len().min(32);
     
         target[..len].copy_from_slice(&block_template.target[..len]); 
-        println!("Array: {:?}", target); // Remaining elements will be zeroes
+        println!("Array: {:?}", target);
         
         spawn_mining_threads(
             num_threads,
@@ -74,15 +120,90 @@ pub fn mine_block(
                     txdata: block_txs,
                 };
 
-                println!("Block mined: {:#?}", block);
+                println!("Block mined!");
 
-                return block;
+                return Some(block);
             }
             Err(_) => {
             }
         }
     }
 }
+
+pub fn create_large_transaction(
+    rpc: &Client,
+    recipient: Address<NetworkChecked>,
+    amount: u64,
+    fee: u64,
+) -> Option<Transaction> {
+    let utxos = rpc.list_unspent(None, None, None, None, None).ok()?;
+
+    if utxos.is_empty() {
+        println!("Error: No available UTXOs.");
+        return None;
+    }
+
+
+    let mut total_input_value = 0;
+    let mut inputs: Vec<CreateRawTransactionInput> = utxos.iter().take(10).map(|utxo| {
+        total_input_value += utxo.amount.to_sat();
+        CreateRawTransactionInput {
+            txid: utxo.txid,
+            vout: utxo.vout,
+            sequence: Some(Sequence::MAX.0),
+        }
+    }).collect();
+
+    if total_input_value < amount + fee {
+        println!("Error: Insufficient funds.");
+        return None;
+    }
+
+    let mut outputs: HashMap<String, Amount> = HashMap::new();
+
+    let script_pubkey = recipient.script_pubkey();
+
+    outputs.insert(
+        recipient.to_string(),
+        Amount::from_sat(amount),
+    );
+
+    let change = total_input_value - amount - fee;
+    if change > 0 {
+        let change_address = rpc.get_new_address(None, None).ok()?; // Get change address
+        outputs.insert(change_address.assume_checked().to_string(), Amount::from_sat(change));
+    }
+
+    let mut raw_tx = rpc.create_raw_transaction(&inputs, &outputs, None, None).ok()?;
+
+
+    for _ in 0..9000{
+        let op_return_script = Builder::new()
+        .push_opcode(opcodes::all::OP_RETURN)
+        .push_slice(b"CITREACITREACITREACITREACITREACITREACITREACITREACITREA")
+        .into_script();
+
+        raw_tx.output.push(TxOut {
+            value: Amount::from_sat(0),
+            script_pubkey: op_return_script,
+        });
+    }
+
+    let signed_tx = rpc.sign_raw_transaction_with_wallet(&raw_tx, None, None).ok()?;
+
+    if !signed_tx.complete {
+        println!("Transaction is NOT fully signed!");
+        return None;
+    }
+    
+
+    let txid = rpc.send_raw_transaction(&signed_tx.hex).ok()?;
+    println!("Large transaction broadcasted: {:?}", txid);
+    Some(signed_tx.transaction().unwrap())
+}
+
+
+
 
 fn print_type_of<T>(_: &T) {
     println!("{}", std::any::type_name::<T>());

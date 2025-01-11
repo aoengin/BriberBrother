@@ -30,14 +30,22 @@ async fn main() {
         .assume_checked();
 
     loop {
-        // sleep 5 secs to avoid spamming the RPC
         std::thread::sleep(std::time::Duration::from_secs(20));
         let height = rpc.get_block_count().unwrap();
         println!("Mining block at height {}", height);
+
+        // TODO: Dynamic height encoding - currently hardcoded for fixed length 
+        // PLEASE NOTE: This is a temporary workaround for the height encoding issue
+        
         let new_height = height + 1;
-        let first: u8 = (new_height % 256) as u8;
-        let second = ((new_height / 256) % 256) as u8;
-        let height_vec = vec![2u8, first, second];
+        let height_bytes = new_height.to_le_bytes();  // Convert to little-endian byte array
+        let size = height_bytes.iter().rposition(|&x| x != 0).map_or(1, |pos| pos + 1); // Find the number of used bytes
+
+        let mut height_vec = vec![3 as u8]; // First byte is the length
+        height_vec.extend_from_slice(&height_bytes[..size]); 
+        // add 00 to end
+        height_vec.push(0);
+        println!("Height: {:?}", height_vec);
 
         let block_template = rpc
             .get_block_template(
@@ -56,8 +64,9 @@ async fn main() {
             block_template,
             coinbase_address.clone(),
             height_vec,
-            index
-        );
+            index, 
+            &rpc,
+        ).unwrap();
 
         match submit_mined_block(block, &rpc) {
             Ok(_) => {
