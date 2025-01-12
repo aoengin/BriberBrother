@@ -23,7 +23,8 @@ Since Bitcoin’s P2P network does not relay non-standard transactions, getting 
 The setup guide for running the Citrea Sequencer can be found here:
 [Citrea Sequencer Setup Guide](https://github.com/chainwayxyz/citrea/blob/nightly/docs/run-dev.md)
 
-Please refer to the Detailed Use Case Testing section for more information.
+Please refer to the [Detailed Use Case Testing](docs/use-case-test.md
+) section for more information.
 
 
 ## Credits
