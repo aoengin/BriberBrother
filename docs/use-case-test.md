@@ -2,8 +2,6 @@
 
 To verify the contract functionality, follow these steps:  
 
----
-
 ### **1. Create a Wallet on Citrea**  
 - Generate a wallet on Citrea and store the private key for later use in **Hardhat**.  
 - Modify the following file to include your wallet address:  
