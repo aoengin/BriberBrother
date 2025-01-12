@@ -2,9 +2,6 @@
 
 To verify the contract functionality, follow these steps:  
 
-### **Requirements**  
-Ensure that **Bitcoin Regtest** is properly set up to allow transactions **above 400 KB** and that the **Citrea Sequencer** is running correctly.  
-
 ---
 
 ### **1. Create a Wallet on Citrea**  
