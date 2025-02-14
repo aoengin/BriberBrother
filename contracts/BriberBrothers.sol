@@ -113,8 +113,8 @@ contract BriberBrothers {
         require(evmAddress != address(0), "Address not indexed");
 
         uint256 bribeAmount = Bribes[bribedTx.wTXID].amount;
-        delete Bribes[bribedTx.wTXID];
         require(address(this).balance >= bribeAmount, "Contract doesn't have enough funds for this Bribe!");
+        delete Bribes[bribedTx.wTXID];
         (bool success, ) = payable(evmAddress).call{value: bribeAmount}("");  // Send the bribe to the miner
         require(success, "Bribe payment failed");
     }
